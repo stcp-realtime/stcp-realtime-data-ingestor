@@ -1,0 +1,150 @@
+name: Build
+
+on:
+  push:
+    branches-ignore:
+      - master
+  workflow_dispatch:
+    inputs:
+      authorizer_native_compilation:
+        description: Perform native compilation for authorizer lambda
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !contains(github.ref, 'master') }}
+
+permissions:
+  checks: write
+
+env:
+  IS_MASTER: ${{ contains(github.ref, 'master') }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ${{ vars.RUNNER }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: ${{ vars.JAVA_DISTRIBUTION }}
+
+      - name: Setup Maven
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: ${{ vars.MAVEN_VERSION }}
+
+      - name: Build
+        run: mvn clean package -DskipTests
+
+      - name: Run Unit Tests
+        id: unit-tests
+        run: mvn -Punit-tests jacoco:instrument surefire:test jacoco:restore-instrumented-classes jacoco:report
+
+      - name: Generate Unit Tests PR Report
+        if: ${{ always() && steps.unit-tests.conclusion == 'success' || steps.unit-tests.conclusion == 'failure' }}
+        uses: mikepenz/action-junit-report@v4
+        with:
+          check_name: unit tests report
+          report_paths: '**/target/**/surefire-reports/*.xml'
+
+      - name: Run Integration Tests
+        id: integration-tests
+        run: mvn -Pintegration-tests jacoco:instrument failsafe:integration-test failsafe:verify jacoco:restore-instrumented-classes jacoco:report
+
+      - name: Generate Integration Tests PR Report
+        if: ${{ always() && steps.integration-tests.conclusion == 'success' || steps.integration-tests.conclusion == 'failure' }}
+        uses: mikepenz/action-junit-report@v4
+        with:
+          check_name: integration tests report
+          report_paths: '**/target/**/failsafe-reports/*.xml'
+
+      - name: Merge Test Reports
+        run: mvn -Pjacoco-report jacoco:merge jacoco:report
+
+      - name: Sonarqube
+        uses: sonarsource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+        with:
+          projectBaseDir: authorizer
+
+      - name: Package Native Image
+        if: ${{ inputs.authorizer_native_compilation || env.IS_MASTER == 'true' }}
+        working-directory: authorizer
+        run: >
+          mvn package -Pnative
+          -Dmaven.test.skip
+          -Dquarkus.native.container-build=true
+          -Dquarkus.native.native-image-xmx=6g
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          retention-days: 1
+          path: |
+            terraform/target/*
+            authorizer/target/*
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ${{ vars.RUNNER }}
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: ${{ vars.JAVA_DISTRIBUTION }}
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+
+      - name: Terraform Apply
+        uses: stcp-realtime/stcp-realtime-shared-github-actions/terraform-apply@master
+        env:
+          LAMBDA_RUNTIME: ${{ (env.IS_MASTER == 'true' || inputs.authorizer_native_compilation == 'true') && 'provided.al2023' || 'java21' }}
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          environment: dev
+          terraform-variables: >
+            -var="authorizer_lambda_runtime=${{ env.LAMBDA_RUNTIME }}"
+
+      - name: Set Release Variables
+        if: env.IS_MASTER == 'true'
+        shell: bash
+        run: |
+          release_version=$(grep -oPm1 "(?<=<version>)[^<]+" pom.xml)
+          release_name="${release_version}-$(date +'%Y%m%d_%H%M%S')"
+          echo "release_name=${release_name}" >> $GITHUB_ENV
+
+      - name: Release Lambda ZIP and Terraform Files
+        if: env.IS_MASTER == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ env.release_name }}
+          fail_on_unmatched_files: true
+          prerelease: true
+          preserve_order: true
+          files: |
+            authorizer/target/function.zip
+            terraform/target/terraform.zip
