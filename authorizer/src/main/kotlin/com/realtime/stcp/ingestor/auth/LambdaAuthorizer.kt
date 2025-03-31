@@ -7,8 +7,8 @@ import io.quarkus.logging.Log
 
 class LambdaAuthorizer : RequestHandler<APIGatewayV2CustomAuthorizerEvent, Boolean> {
     override fun handleRequest(
-        event: APIGatewayV2CustomAuthorizerEvent,
-        context: Context,
+        event: APIGatewayV2CustomAuthorizerEvent?,
+        context: Context?,
     ): Boolean {
         Log.info("Event: $event")
         Log.info("Context: $context")

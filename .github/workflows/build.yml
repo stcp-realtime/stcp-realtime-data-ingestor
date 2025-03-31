@@ -69,13 +69,22 @@ jobs:
       - name: Merge Test Reports
         run: mvn -Pjacoco-report jacoco:merge jacoco:report
 
-      - name: Sonarqube
-        uses: sonarsource/sonarqube-scan-action@v2
+      - name: DeepSource
+        working-directory: authorizer
         env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
-        with:
-          projectBaseDir: authorizer
+          DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
+        run: |
+          curl https://deepsource.io/cli | sh
+          ./bin/deepsource report --analyzer test-coverage --key kotlin --value-file target/coverage-reports/jacoco.xml
+
+
+#      - name: Sonarqube
+#        uses: sonarsource/sonarqube-scan-action@v2
+#        env:
+#          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+#          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
+#        with:
+#          projectBaseDir: authorizer
 
       - name: Package Native Image
         if: ${{ inputs.authorizer_native_compilation || env.IS_MASTER == 'true' }}
