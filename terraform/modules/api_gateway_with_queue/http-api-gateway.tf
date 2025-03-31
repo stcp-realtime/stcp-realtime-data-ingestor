@@ -46,7 +46,7 @@ resource "aws_apigatewayv2_integration" "sqs_integration" {
 
   request_parameters = {
     "QueueUrl" = aws_sqs_queue.sqs_bus.id
-    "MessageBody" = "$request.body.message" // TODO
+    "MessageBody" = "$request.body" // TODO
   }
 }
 
