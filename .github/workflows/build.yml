@@ -70,12 +70,11 @@ jobs:
         run: mvn -Pjacoco-report jacoco:merge jacoco:report
 
       - name: DeepSource
-        working-directory: authorizer
         env:
           DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
         run: |
           curl https://deepsource.io/cli | sh
-          ./bin/deepsource report --analyzer test-coverage --key kotlin --value-file target/coverage-reports/jacoco.xml
+          ./bin/deepsource report --analyzer test-coverage --key kotlin --value-file authorizer/target/coverage-reports/jacoco.xml
 
 
 #      - name: Sonarqube
