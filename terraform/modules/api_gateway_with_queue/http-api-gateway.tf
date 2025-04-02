@@ -21,9 +21,9 @@ resource "aws_apigatewayv2_authorizer" "authorizer" {
   authorizer_uri = var.authorizer_function_invoke_arn
   authorizer_credentials_arn        = aws_iam_role.lambda_invocation_role.arn
   authorizer_payload_format_version = "2.0"
+  enable_simple_responses = true
   authorizer_result_ttl_in_seconds  = 3600
-  identity_sources = ["$request.header.x-auth-token"] // $context.domainName TODO: Use is as host?
-
+  identity_sources = ["$request.header.x-auth-token"]
 }
 
 resource "aws_apigatewayv2_route" "data_ingestor" {
@@ -47,6 +47,13 @@ resource "aws_apigatewayv2_integration" "sqs_integration" {
   request_parameters = {
     "QueueUrl" = aws_sqs_queue.sqs_bus.id
     "MessageBody" = "$request.body" // TODO
+  }
+
+  response_parameters {
+    status_code = 200
+    mappings = {
+      "overwrite:statuscode" = "204"
+    }
   }
 }
 
