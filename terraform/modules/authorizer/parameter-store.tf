@@ -3,12 +3,18 @@
 # ---------------------------------------------------------------------------------------------------------------------
 
 resource "aws_ssm_parameter" "hmac_secret_parameter" {
-  // TODO: Need to thing about doing it like this, will it fail on deploy?
-  name        = "/${var.environment}/${var.project_name}/secrets/hmac-secret"
+  name        = "/${var.environment}/${var.project_name}/secrets/hmac-secrets"
   type        = "SecureString"
-  description = "Secret used for authentication with External data provider"
+  description = "Secrets used for authentication with External data provider"
   tier        = "Standard"
-  value       = random_bytes.hmac_sha3_512_key.base64
+  value       = jsonencode({
+    key_1 = random_bytes.hmac_sha3_512_key_1.base64
+    key_2 = random_bytes.hmac_sha3_512_key_2.base64
+  })
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "aws_iam_policy" "parameter-store-hmac-secret" {
@@ -29,6 +35,10 @@ resource "aws_iam_policy" "parameter-store-hmac-secret" {
   })
 }
 
-resource "random_bytes" "hmac_sha3_512_key" {
+resource "random_bytes" "hmac_sha3_512_key_1" {
+  length = 64
+}
+
+resource "random_bytes" "hmac_sha3_512_key_2" {
   length = 64
 }
