@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  localstack:
+    container_name: "localstack"
+    image: localstack/localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=ssm
+      - AWS_DEFAULT_REGION=eu-south-2
+      - AWS_ACCESS_KEY_ID=fake
+      - AWS_SECRET_ACCESS_KEY=fake
+      - AWS_DEFAULT_OUTPUT=json
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./initialization-hooks/ready:/etc/localstack/init/ready.d"
+
+networks:
+  default:
+    name: data-ingestor-authorizer-network

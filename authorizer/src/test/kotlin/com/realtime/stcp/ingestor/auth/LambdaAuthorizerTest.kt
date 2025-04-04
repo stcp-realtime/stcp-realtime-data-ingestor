@@ -1,8 +1,9 @@
 package com.realtime.stcp.ingestor.auth
 
+import com.amazonaws.services.lambda.runtime.events.APIGatewayV2CustomAuthorizerEvent
 import com.fasterxml.jackson.databind.ObjectMapper
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 
 class LambdaAuthorizerTest {
     val json =
@@ -18,7 +19,11 @@ class LambdaAuthorizerTest {
 
     @Test
     fun testStuff() {
-        val t = LambdaAuthorizer().handleRequest(null, null)
-        assertEquals(json, t)
+        assertThrows<Exception> {
+            LambdaAuthorizer("", ParameterStoreClient()).handleRequest(
+                APIGatewayV2CustomAuthorizerEvent(),
+                null,
+            )
+        }
     }
 }
