@@ -12,3 +12,7 @@ name = "test-coverage"
 
 [[analyzers]]
 name = "terraform"
+
+test_patterns = [
+"test/**",
+]
