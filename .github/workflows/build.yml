@@ -142,6 +142,7 @@ jobs:
           fail_on_unmatched_files: true
           prerelease: true
           preserve_order: true
+          tag_name: ${{ env.release_name }}
           files: |
             authorizer/target/function.zip
             terraform/target/terraform.zip
