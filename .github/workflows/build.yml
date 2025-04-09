@@ -99,6 +99,11 @@ jobs:
 
     permissions:
       contents: write
+      packages: write
+
+    env:
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -130,19 +135,43 @@ jobs:
         if: env.IS_MASTER == 'true'
         shell: bash
         run: |
-          release_version=$(grep -oPm1 "(?<=<version>)[^<]+" pom.xml)
-          release_name="${release_version}-$(date +'%Y%m%d_%H%M%S')"
-          echo "release_name=${release_name}" >> $GITHUB_ENV
+          pom_version=$(grep -oPm1 "(?<=<version>)[^<]+" pom.xml) >> $GITHUB_ENV
+          echo "group_id=$(grep -oPm1 "(?<=<groupId>)[^<]+" pom.xml)" >> $GITHUB_ENV
+          echo "artifact_id=$(grep -oPm1 "(?<=<artifactId>)[^<]+" pom.xml)" >> $GITHUB_ENV
+          echo "release_version=${pom_version}-$(date +'%Y%m%d_%H%M%S')" >> $GITHUB_ENV
 
-      - name: Release Lambda ZIP and Terraform Files
+      - name: Release parent POM
         if: env.IS_MASTER == 'true'
-        uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ env.release_name }}
-          fail_on_unmatched_files: true
-          prerelease: true
-          preserve_order: true
-          tag_name: ${{ env.release_name }}
-          files: |
-            authorizer/target/function.zip
-            terraform/target/terraform.zip
+        run: |
+          mvn deploy:deploy-file \
+            -DgroupId=${{ env.group_id }} \
+            -DartifactId=${{ env.artifact_id }} \
+            -Dversion=${{ env.release_version }} \
+            -Dpackaging=pom \
+            -Dfile=pom.xml \
+            -DrepositoryId=github \
+            -Durl=https://maven.pkg.github.com/${{ github.repository }}
+
+      - name: Release Authorizer Package
+        if: env.IS_MASTER == 'true'
+        run: |
+          mvn deploy:deploy-file \
+            -DgroupId=${{ env.group_id }} \
+            -DartifactId=authorizer \
+            -Dversion=${{ env.release_version }} \
+            -Dpackaging=zip \
+            -Dfile=authorizer/target/function.zip \
+            -DrepositoryId=github \
+            -Durl=https://maven.pkg.github.com/${{ github.repository }}
+
+      - name: Release Terraform Package
+        if: env.IS_MASTER == 'true'
+        run: |
+          mvn deploy:deploy-file \
+            -DgroupId=${{ env.group_id }} \
+            -DartifactId=terraform \
+            -Dversion=${{ env.release_version }} \
+            -Dpackaging=zip \
+            -Dfile=terraform/target/terraform.zip \
+            -DrepositoryId=github \
+            -Durl=https://maven.pkg.github.com/${{ github.repository }}
