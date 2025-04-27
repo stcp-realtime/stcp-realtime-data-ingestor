@@ -98,6 +98,7 @@ jobs:
     runs-on: ${{ vars.RUNNER }}
 
     permissions:
+      id-token: write
       contents: write
       packages: write
 
@@ -125,8 +126,7 @@ jobs:
         env:
           LAMBDA_RUNTIME: ${{ (env.IS_MASTER == 'true' || inputs.authorizer_native_compilation == 'true') && 'provided.al2023' || 'java21' }}
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-terraform-role-arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
           environment: dev
           terraform-variables: >
             -var="authorizer_lambda_runtime=${{ env.LAMBDA_RUNTIME }}"
