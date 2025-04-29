@@ -14,8 +14,7 @@ terraform {
     bucket               = "stcp-realtime-tfstate-dev"
     key                  = "stcp-realtime-data-ingestor.tfstate"
     region               = "eu-south-2"
-
-    dynamodb_table = "stcp-realtime-tfstate-dev"
+    use_lockfile         = true
   }
 }
 
