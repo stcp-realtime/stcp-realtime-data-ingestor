@@ -18,7 +18,7 @@ resource "aws_lambda_function" "authorizer" {
 
   environment {
     variables = {
-      SECRETS_PARAMETER_ARN = aws_ssm_parameter.secrets_parameter.arn
+      SECRETS_PARAMETER_DIRECTORY_PATH = local.secrets_parameter_directory_path
     }
   }
 

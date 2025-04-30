@@ -2,21 +2,28 @@
 # Parameter Store
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_ssm_parameter" "secrets_parameter" {
-  name        = "/${var.environment}/${var.project_name}/secrets/hmac-secrets"
+locals {
+  secrets_parameter_directory_path = "/${var.environment}/${var.project_name}/secrets"
+}
+
+resource "aws_ssm_parameter" "secrets_parameter_1" {
+  name        = "${local.secrets_parameter_directory_path}/secret_1"
   type        = "SecureString"
   description = "Secrets used for authentication with External data provider"
   tier        = "Standard"
-  value       = jsonencode({
-    secret_1 = {
-      secret = random_bytes.auth_secret_1.base64
-      createdAt = timestamp()
-    }
-    secret_2 = {
-      secret = random_bytes.auth_secret_2.base64
-      createdAt = timeadd(timestamp(), "1m") # Doing this so there is always an older secret
-    }
-  })
+  value = random_bytes.auth_secret_1.base64
+
+  lifecycle {
+    ignore_changes = [value]
+  }
+}
+
+resource "aws_ssm_parameter" "secrets_parameter_2" {
+  name        = "${local.secrets_parameter_directory_path}/secret_2"
+  type        = "SecureString"
+  description = "Secrets used for authentication with External data provider"
+  tier        = "Standard"
+  value       = random_bytes.auth_secret_2.base64
 
   lifecycle {
     ignore_changes = [value]
@@ -24,8 +31,8 @@ resource "aws_ssm_parameter" "secrets_parameter" {
 }
 
 resource "aws_iam_policy" "parameter_store_secrets_policy" {
-  name        = "${var.project_name}-hmac-secret-${var.environment}"
-  description = "IAM policy for accessing the HMAC 512 bits parameter store secret"
+  name        = "${var.project_name}-secrets-${var.environment}"
+  description = "IAM policy for accessing the 512 bits parameter store secrets"
 
   policy = jsonencode({
     "Version" : "2012-10-17",
@@ -35,7 +42,7 @@ resource "aws_iam_policy" "parameter_store_secrets_policy" {
         "Action" : [
           "ssm:GetParameter",
         ],
-        "Resource" : aws_ssm_parameter.secrets_parameter.arn,
+        "Resource" : "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.secrets_parameter_directory_path}/*",
       }
     ]
   })

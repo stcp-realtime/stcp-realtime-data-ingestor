@@ -1,7 +1,6 @@
 package com.realtime.stcp.ingestor.auth
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.databind.ObjectMapper
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.enterprise.inject.Produces
@@ -10,7 +9,7 @@ import org.eclipse.microprofile.config.inject.ConfigProperty
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.ssm.SsmClient
-import software.amazon.awssdk.services.ssm.model.GetParameterRequest
+import software.amazon.awssdk.services.ssm.model.GetParametersByPathRequest
 import java.net.URI
 import java.time.ZonedDateTime
 import java.util.Optional
@@ -18,24 +17,25 @@ import java.util.Optional
 @ApplicationScoped
 class ParameterStoreClient(
     @Named("ssmClient") private val ssmClient: SsmClient,
-    private val objectMapper: ObjectMapper,
 ) {
-    fun getParameter(arn: String): SecretsParameter? =
+    fun getParameters(parameterDirPath: String): List<String> =
         runCatching {
-            buildParameterRequest(arn)
-                .let { ssmClient.getParameter(it) }
-                ?.parameter()
-                ?.value()
-                ?.let { objectMapper.readValue(it, SecretsParameter::class.java) }
+            buildParameterRequest(parameterDirPath)
+                .let { ssmClient.getParametersByPath(it) }
+                ?.parameters()
+                ?.sortedByDescending { it.lastModifiedDate() }
+                ?.map { it.value() }
+                ?: emptyList()
         }.getOrElse {
             Log.error(it)
-            null
+            emptyList()
         }
 
-    private fun buildParameterRequest(arn: String): GetParameterRequest =
-        GetParameterRequest
+    private fun buildParameterRequest(parameterDirPath: String): GetParametersByPathRequest =
+        GetParametersByPathRequest
             .builder()
-            .name(arn)
+            .path(parameterDirPath)
+            .recursive(false)
             .withDecryption(true)
             .build()
 }
