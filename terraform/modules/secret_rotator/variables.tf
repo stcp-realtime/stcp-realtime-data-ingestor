@@ -21,18 +21,13 @@ variable "aws_region" {
 # AWS Lambda
 # ---------------------------------------------------------------------------------------------------------------------
 
-variable "authorizer_function_source_path" {
+variable "secret_rotator_function_source_path" {
   description = "Path to the authorizer function zip"
   type        = string
   default     = "../../../authorizer/target/function.zip"
 }
 
-variable "authorizer_lambda_runtime" {
+variable "secret_rotator_lambda_runtime" {
   description = "Runtime of the authorizer lambda function"
   type        = string
-}
-
-variable "secrets_directory_path" {
-  description = "Parent directory of the secrets"
-  type = string
 }

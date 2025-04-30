@@ -35,12 +35,21 @@ locals {
   aws_region   = "eu-south-2"
 }
 
+module "secret_rotator" {
+  source                        = "../../modules/secret_rotator"
+  project_name                  = local.project_name
+  environment                   = local.environment
+  aws_region                    = local.aws_region
+  secret_rotator_lambda_runtime = var.lambda_runtime
+}
+
 module "authorizer" {
   source                    = "../../modules/authorizer"
   project_name              = local.project_name
   environment               = local.environment
   aws_region                = local.aws_region
-  authorizer_lambda_runtime = var.authorizer_lambda_runtime
+  authorizer_lambda_runtime = var.lambda_runtime
+  secrets_directory_path    = module.secret_rotator.secrets_directory_path
 }
 
 module "api_gateway_with_queue" {

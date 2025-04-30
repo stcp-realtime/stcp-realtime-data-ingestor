@@ -40,7 +40,8 @@ resource "aws_iam_policy" "parameter_store_secrets_policy" {
       {
         "Effect" : "Allow"
         "Action" : [
-          "ssm:GetParameter",
+          "ssm:GetParametersByPath",
+          "ssm:PutParameter"
         ],
         "Resource" : "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.secrets_parameter_directory_path}/*",
       }

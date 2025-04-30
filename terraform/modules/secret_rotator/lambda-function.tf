@@ -3,32 +3,32 @@
 # ---------------------------------------------------------------------------------------------------------------------
 
 locals {
-  authorizer_lambda_name = "${var.project_name}-authorizer-${var.environment}"
+  secret_rotator_lambda_name = "${var.project_name}-secret-rotator-${var.environment}"
 }
 
-resource "aws_lambda_function" "authorizer" {
-  function_name = local.authorizer_lambda_name
+resource "aws_lambda_function" "secret_rotator" {
+  function_name = local.secret_rotator_lambda_name
   role          = aws_iam_role.lambda_role.arn
-  filename      = var.authorizer_function_source_path
-  source_code_hash = filebase64sha256(var.authorizer_function_source_path)
+  filename      = var.secret_rotator_function_source_path
+  source_code_hash = filebase64sha256(var.secret_rotator_function_source_path)
   memory_size   = 128
   handler       = "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
-  runtime       = var.authorizer_lambda_runtime
+  runtime       = var.secret_rotator_lambda_runtime
   timeout       = 10
 
   environment {
     variables = {
-      SECRETS_PARAMETER_DIRECTORY_PATH = var.secrets_directory_path
+      SECRETS_PARAMETER_DIRECTORY_PATH = local.secrets_parameter_directory_path
     }
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.authorizer_logs,
-    aws_cloudwatch_log_group.authorizer
+    aws_iam_role_policy_attachment.secret_rotator_logs,
+    aws_cloudwatch_log_group.secret_rotator
   ]
 }
 
-data "aws_iam_policy_document" "assume_role" {
+data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
     effect = "Allow"
     actions = ["sts:AssumeRole"]
@@ -41,8 +41,8 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 resource "aws_iam_role" "lambda_role" {
-  name               = local.authorizer_lambda_name
-  assume_role_policy = data.aws_iam_policy_document.assume_role.json
+  name               = local.secret_rotator_lambda_name
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
 resource "aws_iam_role_policy_attachment" "parameter-store-secret" {
@@ -50,7 +50,7 @@ resource "aws_iam_role_policy_attachment" "parameter-store-secret" {
   policy_arn = aws_iam_policy.parameter_store_secrets_policy.arn
 }
 
-resource "aws_iam_role_policy_attachment" "authorizer_logs" {
+resource "aws_iam_role_policy_attachment" "secret_rotator_logs" {
   role       = aws_iam_role.lambda_role.name
-  policy_arn = aws_iam_policy.authorizer_logs.arn
+  policy_arn = aws_iam_policy.secret_rotator_logs.arn
 }

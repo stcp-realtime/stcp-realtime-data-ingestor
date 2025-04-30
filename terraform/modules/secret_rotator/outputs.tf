@@ -1,8 +1,8 @@
 # ---------------------------------------------------------------------------------------------------------------------
-# AWS Lambda
+# Outputs
 # ---------------------------------------------------------------------------------------------------------------------
 
-variable "lambda_runtime" {
-  description = "Runtime of the authorizer lambda function"
-  type = string
+output "secrets_directory_path" {
+  description = "Parent directory of the secrets"
+  value = local.secrets_parameter_directory_path
 }
