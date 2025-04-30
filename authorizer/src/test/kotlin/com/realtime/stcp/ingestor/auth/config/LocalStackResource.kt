@@ -16,8 +16,9 @@ class LocalStackResource : QuarkusTestResourceLifecycleManager {
     companion object {
         const val LOCALSTACK_PORT = 4566
 
-        const val SECRET_PARAMETER_FILE_PATH = "data/secrets/secret-parameter.json"
-        const val SECRET_PARAMETER_NAME = "/test/stcp-realtime-data-ingestor/secrets/hmac-secrets"
+        const val SECRET_PARAMETER_DIR_PATH = "/test/stcp-realtime-data-ingestor/secrets"
+        const val SECRET_PARAMETER_1 = "secret_value_1"
+        const val SECRET_PARAMETER_2 = "secret_value_2"
     }
 
     private val localstack: LocalStackContainer =
@@ -32,29 +33,16 @@ class LocalStackResource : QuarkusTestResourceLifecycleManager {
     private val mappedPort: Int get() = localstack.getMappedPort(LOCALSTACK_PORT)
 
     private fun initAndGetProperties(): Map<String, String> {
-        val parameter =
-            javaClass.classLoader.getResource(SECRET_PARAMETER_FILE_PATH)?.readText()
-                ?: throw IllegalArgumentException("Unable to read from file $SECRET_PARAMETER_FILE_PATH")
-
-        val createParameterRequest =
-            PutParameterRequest
-                .builder()
-                .name(SECRET_PARAMETER_NAME)
-                .value(parameter)
-                .type(ParameterType.SECURE_STRING)
-                .keyId("alias/aws/ssm")
-                .build()
-
         val ssmClient = createSsmClient()
-        ssmClient.putParameter(createParameterRequest)
-        val parameterARN = ssmClient.getParameter { it.name(SECRET_PARAMETER_NAME) }.parameter().arn()
+        ssmClient.createParameter(1, SECRET_PARAMETER_1)
+        ssmClient.createParameter(2, SECRET_PARAMETER_2)
 
         return mapOf(
             "stcp.realtime.aws.endpoint-override" to url,
             "stcp.realtime.aws.region-override" to localstack.region,
             "quarkus.ssm.aws.credentials.static-provider.access-key-id" to localstack.accessKey,
             "quarkus.ssm.aws.credentials.static-provider.secret-access-key" to localstack.secretKey,
-            "stcp.realtime.data-ingestor.secrets.parameter.arn" to parameterARN,
+            "stcp.realtime.data-ingestor.secrets.parameter.directory.path" to SECRET_PARAMETER_DIR_PATH,
         )
     }
 
@@ -72,6 +60,22 @@ class LocalStackResource : QuarkusTestResourceLifecycleManager {
                     ),
                 ),
             ).build()
+
+    private fun SsmClient.createParameter(
+        n: Int,
+        value: String,
+    ) {
+        val createParameterRequest =
+            PutParameterRequest
+                .builder()
+                .name("${SECRET_PARAMETER_DIR_PATH}/secret_$n")
+                .value(value)
+                .type(ParameterType.SECURE_STRING)
+                .keyId("alias/aws/ssm")
+                .build()
+
+        putParameter(createParameterRequest)
+    }
 
     private fun setAWSLocalstackCredentials() {
         System.setProperty("aws.accessKeyId", localstack.accessKey)

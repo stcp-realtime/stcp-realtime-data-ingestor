@@ -1,165 +1,101 @@
 package com.realtime.stcp.ingestor.auth
 
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertIterableEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 import org.mockito.Mockito.mock
 import software.amazon.awssdk.services.ssm.SsmClient
-import software.amazon.awssdk.services.ssm.model.GetParameterRequest
-import software.amazon.awssdk.services.ssm.model.GetParameterResponse
+import software.amazon.awssdk.services.ssm.model.GetParametersByPathRequest
+import software.amazon.awssdk.services.ssm.model.GetParametersByPathResponse
 import software.amazon.awssdk.services.ssm.model.Parameter
-import software.amazon.awssdk.services.ssm.model.ParameterNotFoundException
 import software.amazon.awssdk.services.ssm.model.ParameterType
-import java.time.ZonedDateTime
+import java.time.Instant
 
 class ParameterStoreClientTest {
     companion object {
         val mockedSsmClient: SsmClient = mock(SsmClient::class.java)
 
-        const val VALID_PARAMETER_ARN =
-            "arn:aws:ssm:eu-south-2:000000000000:parameter/local/stcp-realtime-data-ingestor/secrets/hmac-secrets"
-        const val NOT_FOUND_PARAMETER_ARN =
-            "arn:aws:ssm:eu-south-2:000000000000:parameter/local/stcp-realtime-data-ingestor/secrets/not-found-secrets"
-        const val INVALID_PAYLOAD_PARAMETER_ARN =
-            "arn:aws:ssm:eu-south-2:000000000000:parameter/local/stcp-realtime-data-ingestor/secrets/invalid-secrets"
+        const val VALID_PARAMETER_DIR_PATH = "/test/stcp-realtime-data-ingestor/secrets/hmac-secrets"
+        const val INEXISTENT_PARAMETER_PATH = "/test/stcp-realtime-data-ingestor/secrets/not-found-secrets"
+        const val INVALID_PAYLOAD_PARAMETER_ARN = "/test/stcp-realtime-data-ingestor/secrets/invalid-secrets"
 
         private const val SECRET_VALUE_1 = "secret-value-1"
         private const val SECRET_VALUE_2 = "secret-value-2"
-        private const val CREATED_AT_1 = "2025-04-06T16:49:47Z"
-        private const val CREATED_AT_2 = "2025-04-07T16:49:47Z"
-        private const val VALID_PARAMETER_VALUE = """
-            {
-                "secret_1": {
-                    "secret": "$SECRET_VALUE_1",
-                    "createdAt": "$CREATED_AT_1"
-                },
-                "secret_2": {
-                    "secret": "$SECRET_VALUE_2",
-                    "createdAt": "$CREATED_AT_2"
-                }
-            }
-        """
-
-        private const val INVALID_PARAMETER_VALUE = """
-            {
-                "secret_1": {
-                    "secret": "$SECRET_VALUE_1",
-                    "createdAt": "$CREATED_AT_1"
-                }
-            }
-        """
-
-        private val objectMapper = jacksonObjectMapper().registerModules(JavaTimeModule())
 
         @JvmStatic
         @BeforeAll
         fun setup() {
             Mockito
                 .`when`(
-                    mockedSsmClient.getParameter(
-                        GetParameterRequest
+                    mockedSsmClient.getParametersByPath(
+                        GetParametersByPathRequest
                             .builder()
-                            .name(VALID_PARAMETER_ARN)
+                            .path(VALID_PARAMETER_DIR_PATH)
+                            .recursive(false)
                             .withDecryption(true)
                             .build(),
                     ),
                 ).thenReturn(
-                    GetParameterResponse
+                    GetParametersByPathResponse
                         .builder()
-                        .parameter(
+                        .parameters(
                             Parameter
                                 .builder()
-                                .arn(VALID_PARAMETER_ARN)
+                                .arn(VALID_PARAMETER_DIR_PATH)
                                 .type(ParameterType.SECURE_STRING)
-                                .value(VALID_PARAMETER_VALUE)
+                                .value(SECRET_VALUE_1)
+                                .lastModifiedDate(Instant.EPOCH)
                                 .build(),
-                        ).build(),
-                )
-
-            Mockito
-                .`when`(
-                    mockedSsmClient.getParameter(
-                        GetParameterRequest
-                            .builder()
-                            .name(INVALID_PAYLOAD_PARAMETER_ARN)
-                            .withDecryption(true)
-                            .build(),
-                    ),
-                ).thenReturn(
-                    GetParameterResponse
-                        .builder()
-                        .parameter(
                             Parameter
                                 .builder()
                                 .arn(INVALID_PAYLOAD_PARAMETER_ARN)
                                 .type(ParameterType.SECURE_STRING)
-                                .value(INVALID_PARAMETER_VALUE)
+                                .value(SECRET_VALUE_2)
+                                .lastModifiedDate(Instant.EPOCH.plusMillis(1))
                                 .build(),
                         ).build(),
                 )
 
             Mockito
                 .`when`(
-                    mockedSsmClient.getParameter(
-                        GetParameterRequest
+                    mockedSsmClient.getParametersByPath(
+                        GetParametersByPathRequest
                             .builder()
-                            .name(NOT_FOUND_PARAMETER_ARN)
+                            .path(INEXISTENT_PARAMETER_PATH)
+                            .recursive(false)
                             .withDecryption(true)
                             .build(),
                     ),
-                ).thenThrow(
-                    ParameterNotFoundException.create("random message", null),
+                ).thenReturn(
+                    GetParametersByPathResponse
+                        .builder()
+                        .parameters(emptyList<Parameter>())
+                        .build(),
                 )
         }
     }
 
     @Test
     fun `should return SecretsParameter with correct secrets when called with correct ARN`() {
-        val expected =
-            SecretsParameter(
-                secret1 =
-                    Secret(
-                        secret = SECRET_VALUE_1,
-                        createdAt = ZonedDateTime.parse(CREATED_AT_1),
-                    ),
-                secret2 =
-                    Secret(
-                        secret = SECRET_VALUE_2,
-                        createdAt = ZonedDateTime.parse(CREATED_AT_2),
-                    ),
-            )
+        val expected = listOf(SECRET_VALUE_2, SECRET_VALUE_1)
 
         val actual =
             ParameterStoreClient(
                 ssmClient = mockedSsmClient,
-                objectMapper = objectMapper,
-            ).getParameter(VALID_PARAMETER_ARN)
+            ).getParameters(VALID_PARAMETER_DIR_PATH)
 
-        assertEquals(expected, actual)
+        assertIterableEquals(expected, actual)
     }
 
     @Test
-    fun `should return null when called with invalid ARN`() {
+    fun `should return an empty list when called with an invalid path`() {
         val actual =
             ParameterStoreClient(
                 ssmClient = mockedSsmClient,
-                objectMapper = objectMapper,
-            ).getParameter(NOT_FOUND_PARAMETER_ARN)
+            ).getParameters(INEXISTENT_PARAMETER_PATH)
 
-        assertNull(actual)
-    }
-
-    @Test
-    fun `should return null when parameter's payload is not as expected`() {
-        val actual =
-            ParameterStoreClient(
-                ssmClient = mockedSsmClient,
-                objectMapper = objectMapper,
-            ).getParameter(INVALID_PAYLOAD_PARAMETER_ARN)
-        assertNull(actual)
+        assertTrue(actual.isEmpty())
     }
 }
