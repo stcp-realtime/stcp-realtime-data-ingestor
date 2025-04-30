@@ -33,14 +33,16 @@ locals {
   project_name = "stcp-realtime-data-ingestor"
   environment  = "dev"
   aws_region   = "eu-south-2"
+  log_level    = "DEBUG"
 }
 
 module "authorizer" {
-  source                    = "../../modules/authorizer"
-  project_name              = local.project_name
-  environment               = local.environment
-  aws_region                = local.aws_region
-  authorizer_lambda_runtime = var.authorizer_lambda_runtime
+  source                      = "../../modules/authorizer"
+  project_name                = local.project_name
+  environment                 = local.environment
+  aws_region                  = local.aws_region
+  authorizer_lambda_log_level = local.log_level
+  authorizer_lambda_runtime   = var.authorizer_lambda_runtime
 }
 
 module "api_gateway_with_queue" {

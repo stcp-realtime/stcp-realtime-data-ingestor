@@ -13,7 +13,8 @@ import org.mockito.Mockito.mock
 class LambdaAuthorizerTest {
     companion object {
         private val mockedParameterStoreClient: ParameterStoreClient = mock(ParameterStoreClient::class.java)
-        private const val VALID_PARAMETER_DIR_PATH = "/test/secrets"
+        private const val PARAMETER_ARN_1 = "/test/secrets/secret_1"
+        private const val PARAMETER_ARN_2 = "/test/secrets/secret_2"
 
         val authorizedResponse = AuthorizerResponse(true)
         val unauthorizedResponse = AuthorizerResponse(false)
@@ -23,7 +24,7 @@ class LambdaAuthorizerTest {
         fun setup() {
             Mockito
                 .`when`(
-                    mockedParameterStoreClient.getParameters(VALID_PARAMETER_DIR_PATH),
+                    mockedParameterStoreClient.getParameters(setOf(PARAMETER_ARN_1, PARAMETER_ARN_2)),
                 ).thenReturn(
                     listOf(
                         "secret-value-1",
@@ -36,7 +37,7 @@ class LambdaAuthorizerTest {
     @ParameterizedTest
     @ValueSource(ints = [1, 2])
     fun `should return isAuthorized = true when x-auth-token header is present and has a valid secret value`(secretNum: Int) {
-        val lambdaAuthorizer = LambdaAuthorizer(VALID_PARAMETER_DIR_PATH, mockedParameterStoreClient)
+        val lambdaAuthorizer = LambdaAuthorizer(setOf(PARAMETER_ARN_1, PARAMETER_ARN_2), mockedParameterStoreClient)
         val authorizerEvent = buildAuthorizerEvent("secret-value-$secretNum")
         val actual = lambdaAuthorizer.handleRequest(authorizerEvent, null)
         assertEquals(authorizedResponse, actual)
@@ -44,22 +45,22 @@ class LambdaAuthorizerTest {
 
     @Test
     fun `should return isAuthorized = false when x-auth-token header is not present`() {
-        val lambdaAuthorizer = LambdaAuthorizer(VALID_PARAMETER_DIR_PATH, mockedParameterStoreClient)
+        val lambdaAuthorizer = LambdaAuthorizer(setOf(PARAMETER_ARN_1, PARAMETER_ARN_2), mockedParameterStoreClient)
         val actual = lambdaAuthorizer.handleRequest(buildAuthorizerEvent(addAuthHeader = false), null)
         assertEquals(unauthorizedResponse, actual)
     }
 
     @Test
     fun `should return isAuthorized = false when x-auth-token header is present but cannot get parameter`() {
-        val lambdaAuthorizer = LambdaAuthorizer("invalid-arn", mockedParameterStoreClient)
-        val actual = lambdaAuthorizer.handleRequest(buildAuthorizerEvent(), null)
+        val lambdaAuthorizer = LambdaAuthorizer(setOf("invalid-arn"), mockedParameterStoreClient)
+        val actual = lambdaAuthorizer.handleRequest(buildAuthorizerEvent("secret-value-1"), null)
         assertEquals(unauthorizedResponse, actual)
     }
 
     @Test
     fun `should return isAuthorized = false when x-auth-token header is present but does not match parameter secrets`() {
-        val lambdaAuthorizer = LambdaAuthorizer(VALID_PARAMETER_DIR_PATH, mockedParameterStoreClient)
-        val actual = lambdaAuthorizer.handleRequest(buildAuthorizerEvent(), null)
+        val lambdaAuthorizer = LambdaAuthorizer(setOf(PARAMETER_ARN_1, PARAMETER_ARN_2), mockedParameterStoreClient)
+        val actual = lambdaAuthorizer.handleRequest(buildAuthorizerEvent("invalid-parameter-arn"), null)
         assertEquals(unauthorizedResponse, actual)
     }
 

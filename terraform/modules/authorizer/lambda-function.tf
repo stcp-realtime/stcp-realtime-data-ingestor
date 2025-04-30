@@ -7,18 +7,19 @@ locals {
 }
 
 resource "aws_lambda_function" "authorizer" {
-  function_name = local.authorizer_lambda_name
-  role          = aws_iam_role.lambda_role.arn
-  filename      = var.authorizer_function_source_path
+  function_name    = local.authorizer_lambda_name
+  role             = aws_iam_role.lambda_role.arn
+  filename         = var.authorizer_function_source_path
   source_code_hash = filebase64sha256(var.authorizer_function_source_path)
-  memory_size   = 128
-  handler       = "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
-  runtime       = var.authorizer_lambda_runtime
-  timeout       = 10
+  memory_size      = local.lambda_resource_limits[var.authorizer_lambda_runtime].memory_size
+  handler          = "io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"
+  runtime          = var.authorizer_lambda_runtime
+  timeout          = local.lambda_resource_limits[var.authorizer_lambda_runtime].timeout
 
   environment {
     variables = {
-      SECRETS_PARAMETER_DIRECTORY_PATH = local.secrets_parameter_directory_path
+      LOG_LEVEL                        = var.authorizer_lambda_log_level
+      SECRETS_PARAMETER_DIRECTORY_PATH = join(",", [aws_ssm_parameter.secrets_parameter_1.arn, aws_ssm_parameter.secrets_parameter_2.arn])
     }
   }
 

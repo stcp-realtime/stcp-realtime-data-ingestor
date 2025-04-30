@@ -9,8 +9,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty
 
 @ApplicationScoped
 class LambdaAuthorizer(
-    @ConfigProperty(name = "stcp.realtime.data-ingestor.secrets.parameter.directory.path")
-    private val secretParametersDirPath: String,
+    @ConfigProperty(name = "stcp.realtime.data-ingestor.secrets.parameter.arns")
+    private val secretParameterArns: Set<String>,
     private val parameterStoreClient: ParameterStoreClient,
 ) : RequestHandler<APIGatewayV2CustomAuthorizerEvent, AuthorizerResponse> {
     companion object {
@@ -30,7 +30,7 @@ class LambdaAuthorizer(
                     return AuthorizerResponse(false)
                 }
 
-        val secrets = parameterStoreClient.getParameters(secretParametersDirPath)
+        val secrets = parameterStoreClient.getParameters(secretParameterArns)
 
         return secrets
             .any { it == authToken }

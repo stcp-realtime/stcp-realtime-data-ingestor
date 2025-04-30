@@ -16,9 +16,11 @@ class LocalStackResource : QuarkusTestResourceLifecycleManager {
     companion object {
         const val LOCALSTACK_PORT = 4566
 
-        const val SECRET_PARAMETER_DIR_PATH = "/test/stcp-realtime-data-ingestor/secrets"
-        const val SECRET_PARAMETER_1 = "secret_value_1"
-        const val SECRET_PARAMETER_2 = "secret_value_2"
+        private val SECRET_PARAMETERS =
+            mapOf<Int, String>(
+                1 to "secret_value_1",
+                2 to "secret_value_2",
+            )
     }
 
     private val localstack: LocalStackContainer =
@@ -34,15 +36,17 @@ class LocalStackResource : QuarkusTestResourceLifecycleManager {
 
     private fun initAndGetProperties(): Map<String, String> {
         val ssmClient = createSsmClient()
-        ssmClient.createParameter(1, SECRET_PARAMETER_1)
-        ssmClient.createParameter(2, SECRET_PARAMETER_2)
+        val parameterArns =
+            SECRET_PARAMETERS
+                .map { (key, value) -> ssmClient.createParameter(key, value) }
+                .joinToString(",")
 
         return mapOf(
             "stcp.realtime.aws.endpoint-override" to url,
             "stcp.realtime.aws.region-override" to localstack.region,
             "quarkus.ssm.aws.credentials.static-provider.access-key-id" to localstack.accessKey,
             "quarkus.ssm.aws.credentials.static-provider.secret-access-key" to localstack.secretKey,
-            "stcp.realtime.data-ingestor.secrets.parameter.directory.path" to SECRET_PARAMETER_DIR_PATH,
+            "stcp.realtime.data-ingestor.secrets.parameter.arns" to parameterArns,
         )
     }
 
@@ -64,17 +68,20 @@ class LocalStackResource : QuarkusTestResourceLifecycleManager {
     private fun SsmClient.createParameter(
         n: Int,
         value: String,
-    ) {
+    ): String? {
+        val parameterName = "/test/stcp-realtime-data-ingestor/secrets/secret_$n"
         val createParameterRequest =
             PutParameterRequest
                 .builder()
-                .name("${SECRET_PARAMETER_DIR_PATH}/secret_$n")
+                .name(parameterName)
                 .value(value)
                 .type(ParameterType.SECURE_STRING)
                 .keyId("alias/aws/ssm")
                 .build()
 
         putParameter(createParameterRequest)
+
+        return getParameter { it.name(parameterName) }.parameter().arn()
     }
 
     private fun setAWSLocalstackCredentials() {

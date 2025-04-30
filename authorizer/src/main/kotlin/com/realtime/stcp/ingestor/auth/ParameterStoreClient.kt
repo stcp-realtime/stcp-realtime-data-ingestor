@@ -1,6 +1,5 @@
 package com.realtime.stcp.ingestor.auth
 
-import com.fasterxml.jackson.annotation.JsonProperty
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.enterprise.inject.Produces
@@ -9,19 +8,18 @@ import org.eclipse.microprofile.config.inject.ConfigProperty
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.ssm.SsmClient
-import software.amazon.awssdk.services.ssm.model.GetParametersByPathRequest
+import software.amazon.awssdk.services.ssm.model.GetParametersRequest
 import java.net.URI
-import java.time.ZonedDateTime
 import java.util.Optional
 
 @ApplicationScoped
 class ParameterStoreClient(
     @Named("ssmClient") private val ssmClient: SsmClient,
 ) {
-    fun getParameters(parameterDirPath: String): List<String> =
+    fun getParameters(parameterArns: Set<String>): List<String> =
         runCatching {
-            buildParameterRequest(parameterDirPath)
-                .let { ssmClient.getParametersByPath(it) }
+            buildParameterRequest(parameterArns)
+                .let { ssmClient.getParameters(it) }
                 ?.parameters()
                 ?.sortedByDescending { it.lastModifiedDate() }
                 ?.map { it.value() }
@@ -31,11 +29,10 @@ class ParameterStoreClient(
             emptyList()
         }
 
-    private fun buildParameterRequest(parameterDirPath: String): GetParametersByPathRequest =
-        GetParametersByPathRequest
+    private fun buildParameterRequest(arns: Set<String>): GetParametersRequest? =
+        GetParametersRequest
             .builder()
-            .path(parameterDirPath)
-            .recursive(false)
+            .names(arns)
             .withDecryption(true)
             .build()
 }
@@ -64,17 +61,3 @@ class SsmClientProvider(
                 }
             }.build()
 }
-
-data class SecretsParameter(
-    @JsonProperty("secret_1")
-    private val secret1: Secret,
-    @JsonProperty("secret_2")
-    private val secret2: Secret,
-) {
-    val secrets = listOf(secret1, secret2)
-}
-
-data class Secret(
-    val secret: String,
-    val createdAt: ZonedDateTime,
-)

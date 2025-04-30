@@ -38,11 +38,14 @@ resource "aws_iam_policy" "parameter_store_secrets_policy" {
     "Version" : "2012-10-17",
     "Statement" : [
       {
-        "Effect" : "Allow"
+        "Effect" : "Allow",
         "Action" : [
-          "ssm:GetParameter",
+          "ssm:GetParameters",
         ],
-        "Resource" : "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.secrets_parameter_directory_path}/*",
+        "Resource" : [
+          aws_ssm_parameter.secrets_parameter_1.arn,
+          aws_ssm_parameter.secrets_parameter_2.arn,
+        ],
       }
     ]
   })

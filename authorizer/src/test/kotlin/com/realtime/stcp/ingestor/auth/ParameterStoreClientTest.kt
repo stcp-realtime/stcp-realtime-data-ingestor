@@ -7,9 +7,10 @@ import org.junit.jupiter.api.Test
 import org.mockito.Mockito
 import org.mockito.Mockito.mock
 import software.amazon.awssdk.services.ssm.SsmClient
-import software.amazon.awssdk.services.ssm.model.GetParametersByPathRequest
-import software.amazon.awssdk.services.ssm.model.GetParametersByPathResponse
+import software.amazon.awssdk.services.ssm.model.GetParametersRequest
+import software.amazon.awssdk.services.ssm.model.GetParametersResponse
 import software.amazon.awssdk.services.ssm.model.Parameter
+import software.amazon.awssdk.services.ssm.model.ParameterNotFoundException
 import software.amazon.awssdk.services.ssm.model.ParameterType
 import java.time.Instant
 
@@ -17,9 +18,9 @@ class ParameterStoreClientTest {
     companion object {
         val mockedSsmClient: SsmClient = mock(SsmClient::class.java)
 
-        const val VALID_PARAMETER_DIR_PATH = "/test/stcp-realtime-data-ingestor/secrets/hmac-secrets"
-        const val INEXISTENT_PARAMETER_PATH = "/test/stcp-realtime-data-ingestor/secrets/not-found-secrets"
-        const val INVALID_PAYLOAD_PARAMETER_ARN = "/test/stcp-realtime-data-ingestor/secrets/invalid-secrets"
+        const val VALID_PARAMETER_ARN_1 = "/test/stcp-realtime-data-ingestor/secrets/secret_1"
+        const val VALID_PARAMETER_ARN_2 = "/test/stcp-realtime-data-ingestor/secrets/secret_2"
+        const val INEXISTENT_PARAMETER_ARN = "/test/stcp-realtime-data-ingestor/secrets/not-found-secrets"
 
         private const val SECRET_VALUE_1 = "secret-value-1"
         private const val SECRET_VALUE_2 = "secret-value-2"
@@ -29,28 +30,27 @@ class ParameterStoreClientTest {
         fun setup() {
             Mockito
                 .`when`(
-                    mockedSsmClient.getParametersByPath(
-                        GetParametersByPathRequest
+                    mockedSsmClient.getParameters(
+                        GetParametersRequest
                             .builder()
-                            .path(VALID_PARAMETER_DIR_PATH)
-                            .recursive(false)
+                            .names(setOf(VALID_PARAMETER_ARN_1, VALID_PARAMETER_ARN_2))
                             .withDecryption(true)
                             .build(),
                     ),
                 ).thenReturn(
-                    GetParametersByPathResponse
+                    GetParametersResponse
                         .builder()
                         .parameters(
                             Parameter
                                 .builder()
-                                .arn(VALID_PARAMETER_DIR_PATH)
+                                .arn(VALID_PARAMETER_ARN_1)
                                 .type(ParameterType.SECURE_STRING)
                                 .value(SECRET_VALUE_1)
                                 .lastModifiedDate(Instant.EPOCH)
                                 .build(),
                             Parameter
                                 .builder()
-                                .arn(INVALID_PAYLOAD_PARAMETER_ARN)
+                                .arn(VALID_PARAMETER_ARN_2)
                                 .type(ParameterType.SECURE_STRING)
                                 .value(SECRET_VALUE_2)
                                 .lastModifiedDate(Instant.EPOCH.plusMillis(1))
@@ -60,31 +60,27 @@ class ParameterStoreClientTest {
 
             Mockito
                 .`when`(
-                    mockedSsmClient.getParametersByPath(
-                        GetParametersByPathRequest
+                    mockedSsmClient.getParameters(
+                        GetParametersRequest
                             .builder()
-                            .path(INEXISTENT_PARAMETER_PATH)
-                            .recursive(false)
+                            .names(setOf(INEXISTENT_PARAMETER_ARN))
                             .withDecryption(true)
                             .build(),
                     ),
-                ).thenReturn(
-                    GetParametersByPathResponse
-                        .builder()
-                        .parameters(emptyList<Parameter>())
-                        .build(),
+                ).thenThrow(
+                    ParameterNotFoundException.create("random message", null),
                 )
         }
     }
 
     @Test
-    fun `should return SecretsParameter with correct secrets when called with correct ARN`() {
+    fun `should return secret list with correct secrets when called with correct ARN`() {
         val expected = listOf(SECRET_VALUE_2, SECRET_VALUE_1)
 
         val actual =
             ParameterStoreClient(
                 ssmClient = mockedSsmClient,
-            ).getParameters(VALID_PARAMETER_DIR_PATH)
+            ).getParameters(setOf(VALID_PARAMETER_ARN_1, VALID_PARAMETER_ARN_2))
 
         assertIterableEquals(expected, actual)
     }
@@ -94,7 +90,7 @@ class ParameterStoreClientTest {
         val actual =
             ParameterStoreClient(
                 ssmClient = mockedSsmClient,
-            ).getParameters(INEXISTENT_PARAMETER_PATH)
+            ).getParameters(setOf(INEXISTENT_PARAMETER_ARN))
 
         assertTrue(actual.isEmpty())
     }
