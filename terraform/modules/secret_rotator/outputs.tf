@@ -1,8 +1,8 @@
 # ---------------------------------------------------------------------------------------------------------------------
-# AWS Lambda
+# Outputs
 # ---------------------------------------------------------------------------------------------------------------------
 
-variable "lambda_runtime" {
-  description = "Runtime of the authorizer lambda function"
-  type = string
+output "secret_parameter_arns" {
+  description = "Parameter ARNs of the secrets"
+  value = [aws_ssm_parameter.secrets_parameter_1.arn, aws_ssm_parameter.secrets_parameter_2.arn]
 }

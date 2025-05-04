@@ -41,6 +41,7 @@ resource "aws_iam_policy" "parameter_store_secrets_policy" {
         "Effect" : "Allow",
         "Action" : [
           "ssm:GetParameters",
+          "ssm:PutParameter",
         ],
         "Resource" : [
           aws_ssm_parameter.secrets_parameter_1.arn,

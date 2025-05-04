@@ -1,8 +1,5 @@
 # ---------------------------------------------------------------------------------------------------------------------
-# AWS Lambda
+# Main
 # ---------------------------------------------------------------------------------------------------------------------
 
-variable "lambda_runtime" {
-  description = "Runtime of the authorizer lambda function"
-  type = string
-}
+data "aws_caller_identity" "current" {}

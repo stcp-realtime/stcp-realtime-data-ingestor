@@ -41,7 +41,7 @@ module "authorizer" {
   project_name              = local.project_name
   environment               = local.environment
   aws_region                = local.aws_region
-  authorizer_lambda_runtime = var.authorizer_lambda_runtime
+  lambda_runtime            = var.authorizer_lambda_runtime
 }
 
 module "api_gateway_with_queue" {

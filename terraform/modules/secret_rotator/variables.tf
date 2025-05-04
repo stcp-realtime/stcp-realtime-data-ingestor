@@ -22,27 +22,17 @@ variable "aws_region" {
 # ---------------------------------------------------------------------------------------------------------------------
 
 variable "lambda_function_source_path" {
-  description = "Path to the authorizer function zip"
+  description = "Path to the secrets-rotator function zip"
   type        = string
   default     = "../../../authorizer/target/function.zip"
 }
 
 variable "lambda_runtime" {
-  description = "Runtime of the authorizer lambda function"
+  description = "Runtime of the secrets-rotator lambda function"
   type        = string
-
-  validation {
-    condition     = contains(keys(local.lambda_resource_limits), var.lambda_runtime)
-    error_message = "Invalid Authorizer Lambda Runtime"
-  }
 }
 
 variable "lambda_log_level" {
-  description = "Log level of the authorizer lambda"
+  description = "Log level of the secrets-rotator lambda"
   type        = string
-}
-
-variable "secret_parameter_arns" {
-  description = "Parameter ARNs of the secrets"
-  type = list(string)
 }

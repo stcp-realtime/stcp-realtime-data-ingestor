@@ -129,7 +129,7 @@ jobs:
           aws-terraform-role-arn: ${{ secrets.AWS_TERRAFORM_ROLE_ARN }}
           environment: dev
           terraform-variables: >
-            -var="authorizer_lambda_runtime=${{ env.LAMBDA_RUNTIME }}"
+            -var="lambda_runtime=${{ env.LAMBDA_RUNTIME }}"
 
       - name: Set Release Variables
         if: env.IS_MASTER == 'true'
