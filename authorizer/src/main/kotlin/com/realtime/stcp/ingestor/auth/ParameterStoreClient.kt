@@ -16,17 +16,17 @@ import java.util.Optional
 class ParameterStoreClient(
     @Named("ssmClient") private val ssmClient: SsmClient,
 ) {
-    fun getParameters(parameterArns: Set<String>): List<String> =
+    fun getParameters(parameterArns: Set<String>): Set<String> =
         runCatching {
             buildParameterRequest(parameterArns)
                 .let { ssmClient.getParameters(it) }
                 ?.parameters()
-                ?.sortedByDescending { it.lastModifiedDate() }
                 ?.map { it.value() }
-                ?: emptyList()
+                ?.toSet()
+                ?: emptySet()
         }.getOrElse {
             Log.error(it)
-            emptyList()
+            emptySet()
         }
 
     private fun buildParameterRequest(arns: Set<String>): GetParametersRequest? =

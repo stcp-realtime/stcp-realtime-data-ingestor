@@ -26,7 +26,7 @@ class LambdaAuthorizerTest {
                 .`when`(
                     mockedParameterStoreClient.getParameters(setOf(PARAMETER_ARN_1, PARAMETER_ARN_2)),
                 ).thenReturn(
-                    listOf(
+                    setOf(
                         "secret-value-1",
                         "secret-value-2",
                     ),

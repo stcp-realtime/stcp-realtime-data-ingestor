@@ -1,6 +1,6 @@
 package com.realtime.stcp.ingestor.auth
 
-import org.junit.jupiter.api.Assertions.assertIterableEquals
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
@@ -75,14 +75,14 @@ class ParameterStoreClientTest {
 
     @Test
     fun `should return secret list with correct secrets when called with correct ARN`() {
-        val expected = listOf(SECRET_VALUE_2, SECRET_VALUE_1)
+        val expected = setOf(SECRET_VALUE_2, SECRET_VALUE_1)
 
         val actual =
             ParameterStoreClient(
                 ssmClient = mockedSsmClient,
             ).getParameters(setOf(VALID_PARAMETER_ARN_1, VALID_PARAMETER_ARN_2))
 
-        assertIterableEquals(expected, actual)
+        assertEquals(expected, actual)
     }
 
     @Test
