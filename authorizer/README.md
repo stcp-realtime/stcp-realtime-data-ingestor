@@ -29,9 +29,6 @@ start up the docker container that will stub external services like AWS or the O
 
 `docker-compose -f infrastructure/docker-compose.yaml up -d`
 
-Next copy the arn provided after running the `docker compose up command` and
-replace the value of the `secrets.arn` property
-
 You can then run `mvn quarkus:dev`
 
 ## Packaging
